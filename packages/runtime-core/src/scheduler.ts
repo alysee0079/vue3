@@ -38,7 +38,7 @@ let isFlushing = false
 let isFlushPending = false
 
 const queue: SchedulerJob[] = []
-let flushIndex = 0
+let flushIndex = 0 // 当前执行任务在队列中的位置 index
 
 const pendingPostFlushCbs: SchedulerJob[] = []
 let activePostFlushCbs: SchedulerJob[] | null = null
@@ -64,9 +64,11 @@ export function nextTick<T = void>(
 // which can prevent the job from being skipped and also can avoid repeated patching.
 function findInsertionIndex(id: number) {
   // the start index should be `flushIndex + 1`
+  // 从在执行的任务位置开始查询
   let start = flushIndex + 1
   let end = queue.length
 
+  // 使用二分法取 id 对应任务的位置
   while (start < end) {
     const middle = (start + end) >>> 1
     const middleJobId = getId(queue[middle])
@@ -90,9 +92,11 @@ export function queueJob(job: SchedulerJob) {
       isFlushing && job.allowRecurse ? flushIndex + 1 : flushIndex
     )
   ) {
+    // 全新的任务添加到队列最后
     if (job.id == null) {
       queue.push(job)
     } else {
+      // 根据任务 id 查询在任务队列中的位置, 将新任务插入到其后面
       queue.splice(findInsertionIndex(job.id), 0, job)
     }
     queueFlush()
@@ -228,6 +232,7 @@ function flushJobs(seen?: CountMap) {
     : NOOP
 
   try {
+    // flushIndex 当前执行任务在队列中的 index
     for (flushIndex = 0; flushIndex < queue.length; flushIndex++) {
       const job = queue[flushIndex]
       if (job && job.active !== false) {
@@ -235,10 +240,12 @@ function flushJobs(seen?: CountMap) {
           continue
         }
         // console.log(`running:`, job.id)
+        // 调用任务
         callWithErrorHandling(job, null, ErrorCodes.SCHEDULER)
       }
     }
   } finally {
+    // 执行完所有任务做清空处理
     flushIndex = 0
     queue.length = 0
 

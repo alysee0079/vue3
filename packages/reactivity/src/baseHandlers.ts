@@ -120,6 +120,7 @@ function createGetter(isReadonly = false, shallow = false) {
       return res
     }
 
+    // 非只读属性, 收集依赖
     if (!isReadonly) {
       track(target, TrackOpTypes.GET, key)
     }
@@ -154,6 +155,7 @@ function createSetter(shallow = false) {
     value: unknown,
     receiver: object
   ): boolean {
+    // 获取之前的值
     let oldValue = (target as any)[key]
     if (isReadonly(oldValue) && isRef(oldValue) && !isRef(value)) {
       return false
@@ -181,6 +183,7 @@ function createSetter(shallow = false) {
       if (!hadKey) {
         trigger(target, TriggerOpTypes.ADD, key, value)
       } else if (hasChanged(value, oldValue)) {
+        // 触发 key 对应的依赖
         trigger(target, TriggerOpTypes.SET, key, value, oldValue)
       }
     }

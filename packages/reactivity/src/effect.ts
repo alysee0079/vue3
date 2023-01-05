@@ -87,6 +87,7 @@ export class ReactiveEffect<T = any> {
     if (!this.active) {
       return this.fn()
     }
+    // 储存当前已激活的依赖
     let parent: ReactiveEffect | undefined = activeEffect
     let lastShouldTrack = shouldTrack
     while (parent) {
@@ -96,8 +97,11 @@ export class ReactiveEffect<T = any> {
       parent = parent.parent
     }
     try {
+      // 储存当前激活的依赖为父级依赖
       this.parent = activeEffect
+      // 将当前依赖作为激活的依赖
       activeEffect = this
+      // 允许收集
       shouldTrack = true
 
       trackOpBit = 1 << ++effectTrackDepth
@@ -107,6 +111,7 @@ export class ReactiveEffect<T = any> {
       } else {
         cleanupEffect(this)
       }
+      // 执行依赖本体
       return this.fn()
     } finally {
       if (effectTrackDepth <= maxMarkerBits) {
@@ -115,8 +120,11 @@ export class ReactiveEffect<T = any> {
 
       trackOpBit = 1 << --effectTrackDepth
 
+      // 将上一个依赖作为激活的依赖, 继续处理
       activeEffect = this.parent
+      // 将上一个收集状态作为激活的状态, 继续处理
       shouldTrack = lastShouldTrack
+      // 重置当前依赖的父级
       this.parent = undefined
 
       if (this.deferStop) {
@@ -139,6 +147,7 @@ export class ReactiveEffect<T = any> {
   }
 }
 
+// 清除依赖
 function cleanupEffect(effect: ReactiveEffect) {
   const { deps } = effect
   if (deps.length) {
@@ -175,12 +184,15 @@ export function effect<T = any>(
     fn = (fn as ReactiveEffectRunner).effect.fn
   }
 
+  // 创建依赖实例
   const _effect = new ReactiveEffect(fn)
+  // 如果有 options 参数, 扩展到 _effect
   if (options) {
     extend(_effect, options)
     if (options.scope) recordEffectScope(_effect, options.scope)
   }
   if (!options || !options.lazy) {
+    // 执行依赖
     _effect.run()
   }
   const runner = _effect.run.bind(_effect) as ReactiveEffectRunner
@@ -210,13 +222,20 @@ export function resetTracking() {
   shouldTrack = last === undefined ? true : last
 }
 
+// 收集依赖
 export function track(target: object, type: TrackOpTypes, key: unknown) {
+  // activeEffect 当前激活的依赖对象
   if (shouldTrack && activeEffect) {
+    // 从 targetMap 读取 key 对应的依赖, 如果没有则创建
+
+    // targetMap: 对象为键, 对象的属性与依赖的 Map 键值对
     let depsMap = targetMap.get(target)
     if (!depsMap) {
+      // 如果没有对象为 key的值, 添加此对象为 key, new Map 为值
       targetMap.set(target, (depsMap = new Map()))
     }
     let dep = depsMap.get(key)
+    // 如果对象的 map 没有当前 key 的依赖 Set, 创建以此 key 为 key, 以 new Set 为值
     if (!dep) {
       depsMap.set(key, (dep = createDep()))
     }
@@ -225,6 +244,7 @@ export function track(target: object, type: TrackOpTypes, key: unknown) {
       ? { effect: activeEffect, target, type, key }
       : undefined
 
+    // 往 dep 添加激活的依赖
     trackEffects(dep, eventInfo)
   }
 }
@@ -245,7 +265,9 @@ export function trackEffects(
   }
 
   if (shouldTrack) {
+    // dep(访问属性的依赖 set) 添加激活的依赖
     dep.add(activeEffect!)
+    // 依赖收集 dep(访问属性的依赖 set)
     activeEffect!.deps.push(dep)
     if (__DEV__ && activeEffect!.onTrack) {
       activeEffect!.onTrack({
@@ -366,10 +388,12 @@ function triggerEffect(
   effect: ReactiveEffect,
   debuggerEventExtraInfo?: DebuggerEventExtraInfo
 ) {
+  // 触发的依赖不是当前激活的依赖
   if (effect !== activeEffect || effect.allowRecurse) {
     if (__DEV__ && effect.onTrigger) {
       effect.onTrigger(extend({ effect }, debuggerEventExtraInfo))
     }
+    // 执行 scheduler 或者 run, scheduler 会包裹 run 方法, 额外做一些处理
     if (effect.scheduler) {
       effect.scheduler()
     } else {
