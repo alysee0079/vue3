@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <script src="../../dist/vue.global.js"></script>
+  </head>
+  <body>
+    <div id="app">
+      <p id="pt"></p>
+      <!-- <button id="btn" @click="handleClick">button</button> -->
+    </div>
+
+    <script>
+      const btn = document.querySelector('#btn')
+      const pt = document.querySelector('#pt')
+
+      const { createApp, reactive, computed, ref, effect } = Vue
+      const obj = ref({ a: 1 })
+      effect(() => {
+        document.querySelector('#pt').innerText = obj.value.a
+      })
+
+      pt.addEventListener('click', () => {
+        obj.value.a = 100
+      })
+    </script>
+  </body>
+</html>

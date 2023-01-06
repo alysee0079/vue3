@@ -37,6 +37,7 @@ type RefBase<T> = {
 }
 
 export function trackRefValue(ref: RefBase<any>) {
+  // activeEffect 当前激活的依赖
   if (shouldTrack && activeEffect) {
     ref = toRaw(ref)
     if (__DEV__) {
@@ -110,9 +111,11 @@ class RefImpl<T> {
 
   constructor(value: T, public readonly __v_isShallow: boolean) {
     this._rawValue = __v_isShallow ? value : toRaw(value)
+    // 储存值, 如果 value 是对象, 则做响应式处理
     this._value = __v_isShallow ? value : toReactive(value)
   }
 
+  // 访问 value 收集 ref 依赖
   get value() {
     trackRefValue(this)
     return this._value
@@ -125,6 +128,7 @@ class RefImpl<T> {
     if (hasChanged(newVal, this._rawValue)) {
       this._rawValue = newVal
       this._value = useDirectValue ? newVal : toReactive(newVal)
+      // 触发依赖
       triggerRefValue(this, newVal)
     }
   }
