@@ -29,7 +29,7 @@ export interface Target {
   [ReactiveFlags.RAW]?: any
 }
 
-export const reactiveMap = new WeakMap<Target, any>() // 储存代理对象和代理的键值对
+export const reactiveMap = new WeakMap<Target, any>() // 原始对象和响应式对象的缓存映射
 export const shallowReactiveMap = new WeakMap<Target, any>()
 export const readonlyMap = new WeakMap<Target, any>()
 export const shallowReadonlyMap = new WeakMap<Target, any>()
@@ -178,12 +178,13 @@ export function shallowReadonly<T extends object>(target: T): Readonly<T> {
   )
 }
 
+// 创建响应式对象
 function createReactiveObject(
-  target: Target,
-  isReadonly: boolean,
-  baseHandlers: ProxyHandler<any>,
-  collectionHandlers: ProxyHandler<any>,
-  proxyMap: WeakMap<Target, any>
+  target: Target, // 待变成响应式的对象
+  isReadonly: boolean, // 是否只读
+  baseHandlers: ProxyHandler<any>, // 普通对象和数组类型数据的响应式处理器
+  collectionHandlers: ProxyHandler<any>, // 集合类型数据的响应式处理器
+  proxyMap: WeakMap<Target, any> // 原始对象和响应式对象的缓存映射
 ) {
   if (!isObject(target)) {
     if (__DEV__) {
@@ -193,6 +194,7 @@ function createReactiveObject(
   }
   // target is already a Proxy, return it.
   // exception: calling readonly() on a reactive object
+  // ReactiveFlags.RAW 响应式对象
   if (
     target[ReactiveFlags.RAW] &&
     !(isReadonly && target[ReactiveFlags.IS_REACTIVE])
@@ -209,6 +211,7 @@ function createReactiveObject(
   if (targetType === TargetType.INVALID) {
     return target
   }
+  // 根据目标数据的类型使用不同的响应式处理器
   const proxy = new Proxy(
     target,
     targetType === TargetType.COLLECTION ? collectionHandlers : baseHandlers
@@ -236,6 +239,7 @@ export function isProxy(value: unknown): boolean {
   return isReactive(value) || isReadonly(value)
 }
 
+// 响应式对象转成原对象
 export function toRaw<T>(observed: T): T {
   const raw = observed && (observed as Target)[ReactiveFlags.RAW]
   return raw ? toRaw(raw) : observed

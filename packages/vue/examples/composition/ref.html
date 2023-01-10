@@ -9,24 +9,37 @@
   </head>
   <body>
     <div id="app">
-      <p id="pt"></p>
+      <p>{{arr[0]}}</p>
+      <button id="pt" @click="add">button</button>
     </div>
 
     <script>
-      const btn = document.querySelector('#btn')
-      const pt = document.querySelector('#pt')
-
       const { createApp, reactive, computed, ref, effect, watch } = Vue
-      const obj = reactive({ a: 1 })
-      watch(obj, (n, o) => {
-        document.querySelector('#pt').innerText = n.a
-      })
 
-      document.querySelector('#pt').innerText = obj.a
+      createApp({
+        setup(props) {
+          const arr = reactive([333, 444, 555])
+          return {
+            arr
+          }
+          // const obj = reactive({
+          //   name: {
+          //     age: {
+          //       a: 1
+          //     }
+          //   }
+          // })
 
-      pt.addEventListener('click', () => {
-        obj.a = 200
-      })
+          // const add = () => {
+          //   obj.name.age.a = 200
+          // }
+
+          // return {
+          //   obj,
+          //   add
+          // }
+        }
+      }).mount(document.querySelector('#app'))
     </script>
   </body>
 </html>

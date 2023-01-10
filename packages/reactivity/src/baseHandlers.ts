@@ -56,13 +56,16 @@ function createArrayInstrumentations() {
   const instrumentations: Record<string, Function> = {}
   // instrument identity-sensitive Array methods to account for possible reactive
   // values
+  // 数组方法重构, 能够收集依赖
   ;(['includes', 'indexOf', 'lastIndexOf'] as const).forEach(key => {
     instrumentations[key] = function (this: unknown[], ...args: unknown[]) {
+      // 收集每个方法对应的依赖
       const arr = toRaw(this) as any
       for (let i = 0, l = this.length; i < l; i++) {
         track(arr, TrackOpTypes.GET, i + '')
       }
       // we run the method using the original args first (which may be reactive)
+      // 获取对应值
       const res = arr[key](...args)
       if (res === -1 || res === false) {
         // if that didn't work, run it again using raw values.
@@ -110,17 +113,19 @@ function createGetter(isReadonly = false, shallow = false) {
 
     const targetIsArray = isArray(target)
 
+    // 操作数组方法时收集依赖, 直接返回值(数组), 后续不处理
     if (!isReadonly && targetIsArray && hasOwn(arrayInstrumentations, key)) {
       return Reflect.get(arrayInstrumentations, key, receiver)
     }
 
+    // 读取属性值
     const res = Reflect.get(target, key, receiver)
 
     if (isSymbol(key) ? builtInSymbols.has(key) : isNonTrackableKeys(key)) {
       return res
     }
 
-    // 非只读属性, 收集依赖
+    // 非只读属性, 收集依赖(对象)
     if (!isReadonly) {
       track(target, TrackOpTypes.GET, key)
     }
@@ -134,6 +139,7 @@ function createGetter(isReadonly = false, shallow = false) {
       return targetIsArray && isIntegerKey(key) ? res : res.value
     }
 
+    // 如果值时对象, 需要转换成响应式
     if (isObject(res)) {
       // Convert returned value into a proxy as well. we do the isObject check
       // here to avoid invalid value warning. Also need to lazy access readonly
@@ -155,7 +161,7 @@ function createSetter(shallow = false) {
     value: unknown,
     receiver: object
   ): boolean {
-    // 获取之前的值
+    // 获取旧值
     let oldValue = (target as any)[key]
     if (isReadonly(oldValue) && isRef(oldValue) && !isRef(value)) {
       return false
@@ -173,17 +179,24 @@ function createSetter(shallow = false) {
       // in shallow mode, objects are set as-is regardless of reactive or not
     }
 
+    // 如果目标是数组, key 是否在数组中
+    // 如果目标是对象, key 是否在对象本身
     const hadKey =
       isArray(target) && isIntegerKey(key)
         ? Number(key) < target.length
         : hasOwn(target, key)
+
+    // 更新最新值
     const result = Reflect.set(target, key, value, receiver)
+
     // don't trigger if target is something up in the prototype chain of original
+    // 触发依赖
     if (target === toRaw(receiver)) {
       if (!hadKey) {
+        // key 不在对象/数组中, 说明是新增操作
         trigger(target, TriggerOpTypes.ADD, key, value)
       } else if (hasChanged(value, oldValue)) {
-        // 触发 key 对应的依赖
+        // key 在对象/数组中, 说明是更新操作
         trigger(target, TriggerOpTypes.SET, key, value, oldValue)
       }
     }

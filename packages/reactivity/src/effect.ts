@@ -16,7 +16,8 @@ import { ComputedRefImpl } from './computed'
 // which maintains a Set of subscribers, but we simply store them as
 // raw Sets to reduce memory overhead.
 type KeyToDepMap = Map<any, Dep>
-const targetMap = new WeakMap<any, KeyToDepMap>() // 储存响应式的依赖
+// 目标对象与依赖的映射
+const targetMap = new WeakMap<any, KeyToDepMap>()
 
 // The number of effects currently being tracked recursively.
 let effectTrackDepth = 0
@@ -45,6 +46,7 @@ export type DebuggerEventExtraInfo = {
   oldTarget?: Map<any, any> | Set<any>
 }
 
+// 当前激活的副作用(作为依赖收集)
 export let activeEffect: ReactiveEffect | undefined
 
 export const ITERATE_KEY = Symbol(__DEV__ ? 'iterate' : '')
@@ -205,6 +207,7 @@ export function stop(runner: ReactiveEffectRunner) {
   runner.effect.stop()
 }
 
+// 是否应该收集依赖
 export let shouldTrack = true
 const trackStack: boolean[] = []
 
@@ -266,9 +269,9 @@ export function trackEffects(
   }
 
   if (shouldTrack) {
-    // dep(访问属性的依赖 set) 添加激活的依赖
+    // 收集当前的 effect(副作用)作为依赖
     dep.add(activeEffect!)
-    // 依赖收集 dep(访问属性的依赖 set)
+    // 当前激活的 effect 收集 dep 集合作为依赖
     activeEffect!.deps.push(dep)
     if (__DEV__ && activeEffect!.onTrack) {
       activeEffect!.onTrack({
@@ -287,6 +290,7 @@ export function trigger(
   oldValue?: unknown,
   oldTarget?: Map<unknown, unknown> | Set<unknown>
 ) {
+  // 通过 targetMap 获取 target 对应的依赖集合
   const depsMap = targetMap.get(target)
   if (!depsMap) {
     // never been tracked
