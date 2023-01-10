@@ -50,16 +50,17 @@ export let activeEffect: ReactiveEffect | undefined
 export const ITERATE_KEY = Symbol(__DEV__ ? 'iterate' : '')
 export const MAP_KEY_ITERATE_KEY = Symbol(__DEV__ ? 'Map key iterate' : '')
 
+// 响应式实例
 export class ReactiveEffect<T = any> {
   active = true
-  deps: Dep[] = []
+  deps: Dep[] = [] // 和响应式相关的依赖
   parent: ReactiveEffect | undefined = undefined
 
   /**
    * Can be attached after creation
    * @internal
    */
-  computed?: ComputedRefImpl<T>
+  computed?: ComputedRefImpl<T> // 计算属性
   /**
    * @internal
    */
@@ -76,8 +77,8 @@ export class ReactiveEffect<T = any> {
   onTrigger?: (event: DebuggerEvent) => void
 
   constructor(
-    public fn: () => T,
-    public scheduler: EffectScheduler | null = null,
+    public fn: () => T, // 响应式执行函数
+    public scheduler: EffectScheduler | null = null, // 响应式前置函数
     scope?: EffectScope
   ) {
     recordEffectScope(this, scope)
@@ -372,11 +373,13 @@ export function triggerEffects(
 ) {
   // spread into array for stabilization
   const effects = isArray(dep) ? dep : [...dep]
+  // 先执行计算属性的依赖
   for (const effect of effects) {
     if (effect.computed) {
       triggerEffect(effect, debuggerEventExtraInfo)
     }
   }
+  // 再执行非计算属性的依赖
   for (const effect of effects) {
     if (!effect.computed) {
       triggerEffect(effect, debuggerEventExtraInfo)
@@ -395,8 +398,10 @@ function triggerEffect(
     }
     // 执行 scheduler 或者 run, scheduler 会包裹 run 方法, 额外做一些处理
     if (effect.scheduler) {
+      // compunted 执行 scheduler 来触发依赖
       effect.scheduler()
     } else {
+      // run 直接执行依赖
       effect.run()
     }
   }

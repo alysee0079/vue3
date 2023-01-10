@@ -32,7 +32,7 @@ export class ComputedRefImpl<T> {
   public readonly __v_isRef = true
   public readonly [ReactiveFlags.IS_READONLY]: boolean = false
 
-  public _dirty = true
+  public _dirty = true // 是否需要更新值
   public _cacheable: boolean
 
   constructor(
@@ -41,7 +41,9 @@ export class ComputedRefImpl<T> {
     isReadonly: boolean,
     isSSR: boolean
   ) {
+    // 初始化响应式实例
     this.effect = new ReactiveEffect(getter, () => {
+      // _dirty 改为 true, 代表需要更新最新值
       if (!this._dirty) {
         this._dirty = true
         triggerRefValue(this)
@@ -52,12 +54,16 @@ export class ComputedRefImpl<T> {
     this[ReactiveFlags.IS_READONLY] = isReadonly
   }
 
+  // 访问 value 时依赖并收集触发响应式函数获取最新值
   get value() {
     // the computed ref may get wrapped by other proxies e.g. readonly() #3376
     const self = toRaw(this)
+    // 依赖收集
     trackRefValue(self)
+    // _dirty === true 说明需要更新最新值
     if (self._dirty || !self._cacheable) {
       self._dirty = false
+      // 执行响应式函数获取最新值
       self._value = self.effect.run()!
     }
     return self._value

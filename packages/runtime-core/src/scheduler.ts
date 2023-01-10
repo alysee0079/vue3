@@ -99,13 +99,16 @@ export function queueJob(job: SchedulerJob) {
       // 根据任务 id 查询在任务队列中的位置, 将新任务插入到其后面
       queue.splice(findInsertionIndex(job.id), 0, job)
     }
+    // 执行任务队列
     queueFlush()
   }
 }
 
 function queueFlush() {
+  // 如果当前没有任务执行, 开始执行任务队列
   if (!isFlushing && !isFlushPending) {
     isFlushPending = true
+    // 使用微任务执行任务
     currentFlushPromise = resolvedPromise.then(flushJobs)
   }
 }

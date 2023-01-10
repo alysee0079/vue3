@@ -307,12 +307,15 @@ function doWatch(
   let oldValue: any = isMultiSource
     ? new Array((source as []).length).fill(INITIAL_WATCHER_VALUE)
     : INITIAL_WATCHER_VALUE
+
+  // 调度任务(获取新旧值, 调用回调函数)
   const job: SchedulerJob = () => {
     if (!effect.active) {
       return
     }
     if (cb) {
       // watch(source, cb)
+      // 获取最新值
       const newValue = effect.run()
       if (
         deep ||
@@ -330,14 +333,15 @@ function doWatch(
         if (cleanup) {
           cleanup()
         }
+        // 将最新值和旧值传递给 watch 回调
         callWithAsyncErrorHandling(cb, instance, ErrorCodes.WATCH_CALLBACK, [
           newValue,
           // pass undefined as the old value when it's changed for the first time
-          oldValue === INITIAL_WATCHER_VALUE 
+          oldValue === INITIAL_WATCHER_VALUE
             ? undefined
-            : (isMultiSource && oldValue[0] === INITIAL_WATCHER_VALUE)
-              ? []
-              : oldValue,
+            : isMultiSource && oldValue[0] === INITIAL_WATCHER_VALUE
+            ? []
+            : oldValue,
           onCleanup
         ])
         oldValue = newValue
@@ -354,16 +358,21 @@ function doWatch(
 
   let scheduler: EffectScheduler
   if (flush === 'sync') {
+    // 立即触发回调
     scheduler = job as any // the scheduler function gets called directly
   } else if (flush === 'post') {
+    // 组件渲染之后再执行回调
     scheduler = () => queuePostRenderEffect(job, instance && instance.suspense)
   } else {
     // default: 'pre'
+    // 在组件渲染之前执行回调
     job.pre = true
     if (instance) job.id = instance.uid
+    // 加入到微任务队列执行任务
     scheduler = () => queueJob(job)
   }
 
+  // 创建 watch 响应式实列
   const effect = new ReactiveEffect(getter, scheduler)
 
   if (__DEV__) {
@@ -374,11 +383,14 @@ function doWatch(
   // initial run
   if (cb) {
     if (immediate) {
+      // immediate === true 立即执行回调
       job()
     } else {
-      oldValue = effect.run()
+      // 获取旧值
+      oldValue = effect.run() // effect.run() === () => traverse(baseGetter())
     }
   } else if (flush === 'post') {
+    // 等组件渲染后获取最新值
     queuePostRenderEffect(
       effect.run.bind(effect),
       instance && instance.suspense
@@ -440,6 +452,7 @@ export function createPathGetter(ctx: any, path: string) {
   }
 }
 
+// 触发 watch 目标的依赖收集
 export function traverse(value: unknown, seen?: Set<unknown>) {
   if (!isObject(value) || (value as any)[ReactiveFlags.SKIP]) {
     return value
