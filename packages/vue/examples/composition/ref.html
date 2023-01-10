@@ -9,35 +9,34 @@
   </head>
   <body>
     <div id="app">
-      <p>{{arr[0]}}</p>
-      <button id="pt" @click="add">button</button>
+      <div v-if="state.showMsg">{{state.msg}}</div>
+      <div v-else>{{Math.random()}}</div>
+      <button @click="toggle">toggle</button>
+      <button @click="switchView">switchView</button>
     </div>
 
     <script>
-      const { createApp, reactive, computed, ref, effect, watch } = Vue
-
+      const { createApp, reactive } = Vue
       createApp({
         setup(props) {
-          const arr = reactive([333, 444, 555])
-          return {
-            arr
+          const state = reactive({
+            showMsg: true,
+            msg: '123'
+          })
+
+          const toggle = () => {
+            state.msg = state.msg === '123' ? '456' : '123'
           }
-          // const obj = reactive({
-          //   name: {
-          //     age: {
-          //       a: 1
-          //     }
-          //   }
-          // })
 
-          // const add = () => {
-          //   obj.name.age.a = 200
-          // }
+          const switchView = () => {
+            state.showMsg = !state.showMsg
+          }
 
-          // return {
-          //   obj,
-          //   add
-          // }
+          return {
+            state,
+            toggle,
+            switchView
+          }
         }
       }).mount(document.querySelector('#app'))
     </script>

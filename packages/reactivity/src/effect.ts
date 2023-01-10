@@ -22,14 +22,14 @@ const targetMap = new WeakMap<any, KeyToDepMap>()
 // The number of effects currently being tracked recursively.
 let effectTrackDepth = 0
 
-export let trackOpBit = 1
+export let trackOpBit = 1 // 依赖手机的状态
 
 /**
  * The bitwise track markers support at most 30 levels of recursion.
  * This value is chosen to enable modern JS engines to use a SMI on all platforms.
  * When recursion depth is greater, fall back to using a full cleanup.
  */
-const maxMarkerBits = 30
+const maxMarkerBits = 30 // 最大标记的位数
 
 export type EffectScheduler = (...args: any[]) => any
 
@@ -90,40 +90,46 @@ export class ReactiveEffect<T = any> {
     if (!this.active) {
       return this.fn()
     }
-    // 储存当前已激活的依赖
+
     let parent: ReactiveEffect | undefined = activeEffect
     let lastShouldTrack = shouldTrack
     while (parent) {
+      // 父级的副作用是当前副作用本身, 跳出执行, 防止死循环
       if (parent === this) {
         return
       }
       parent = parent.parent
     }
     try {
-      // 储存当前激活的依赖为父级依赖
+      // 储存之前的副作用为父级
       this.parent = activeEffect
-      // 将当前依赖作为激活的依赖
+      // 将当前副作用作为最新的副作用
       activeEffect = this
       // 允许收集
       shouldTrack = true
 
+      // 根据递归的深度记录位数
       trackOpBit = 1 << ++effectTrackDepth
-
+      // 如果超过 maxMarkerBits, 则 trackOpBit 的计算会超过最大整型的位数, 将其降级为 cleanupEffect
       if (effectTrackDepth <= maxMarkerBits) {
+        // 给依赖打标记
         initDepMarkers(this)
       } else {
+        // 清除依赖
         cleanupEffect(this)
       }
-      // 执行依赖本体
+      // 执行副作用函数
       return this.fn()
     } finally {
       if (effectTrackDepth <= maxMarkerBits) {
+        // 完成依赖标记
         finalizeDepMarkers(this)
       }
 
+      // 恢复到上一级
       trackOpBit = 1 << --effectTrackDepth
 
-      // 将上一个依赖作为激活的依赖, 继续处理
+      // 将上一个依赖作为激活的副作用, 继续处理
       activeEffect = this.parent
       // 将上一个收集状态作为激活的状态, 继续处理
       shouldTrack = lastShouldTrack
@@ -187,7 +193,7 @@ export function effect<T = any>(
     fn = (fn as ReactiveEffectRunner).effect.fn
   }
 
-  // 创建依赖实例
+  // 创建响应式的副作用实例
   const _effect = new ReactiveEffect(fn)
   // 如果有 options 参数, 扩展到 _effect
   if (options) {
@@ -260,7 +266,9 @@ export function trackEffects(
   let shouldTrack = false
   if (effectTrackDepth <= maxMarkerBits) {
     if (!newTracked(dep)) {
+      // 标记新依赖
       dep.n |= trackOpBit // set newly tracked
+      // 如果依赖已经被收集m, 就不需要再次收集
       shouldTrack = !wasTracked(dep)
     }
   } else {
@@ -269,7 +277,7 @@ export function trackEffects(
   }
 
   if (shouldTrack) {
-    // 收集当前的 effect(副作用)作为依赖
+    // 收集当前激活的的 effect(副作用)作为依赖
     dep.add(activeEffect!)
     // 当前激活的 effect 收集 dep 集合作为依赖
     activeEffect!.deps.push(dep)
