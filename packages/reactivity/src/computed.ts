@@ -32,7 +32,7 @@ export class ComputedRefImpl<T> {
   public readonly __v_isRef = true
   public readonly [ReactiveFlags.IS_READONLY]: boolean = false
 
-  public _dirty = true // 是否需要更新值
+  public _dirty = true // 是否获取最新值
   public _cacheable: boolean
 
   constructor(
@@ -41,12 +41,12 @@ export class ComputedRefImpl<T> {
     isReadonly: boolean,
     isSSR: boolean
   ) {
-    // 创建 computed 的响应式实例
+    // 创建 computed 的副作用, 会被其他变量作为依赖收集, 当变量改变时会触发此副作用
     this.effect = new ReactiveEffect(getter, () => {
-      // 触发计算属性时, 将 _dirty 改为 true, 代表需要更新最新值
+      // 当计算属性时作为依赖被触发时说明计算属性的值需要更新, 将 _dirty 改为 true
       if (!this._dirty) {
         this._dirty = true
-        // 触发依赖
+        // 不直接获取最新值, 触发 computed 的依赖, 再通过依赖读取 computed 的值进行计算最新值
         triggerRefValue(this)
       }
     })
@@ -61,8 +61,10 @@ export class ComputedRefImpl<T> {
     const self = toRaw(this)
     // 依赖收集
     trackRefValue(self)
-    // _dirty === true 说明需要更新最新值
+    // _dirty === true 说明需要更新最新值, 只有在 computed 被作为依赖触发时 _dirty 才会被设置为 true,
+    // 所以如果计算属性没有改变时, 访问其值永远只返回旧值.
     if (self._dirty || !self._cacheable) {
+      // 设置为 false, 标识计算属性不需要更新
       self._dirty = false
       // 执行响应式函数获取最新值
       self._value = self.effect.run()!

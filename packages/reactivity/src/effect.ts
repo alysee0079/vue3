@@ -58,10 +58,10 @@ export let activeEffect: ReactiveEffect | undefined
 export const ITERATE_KEY = Symbol(__DEV__ ? 'iterate' : '')
 export const MAP_KEY_ITERATE_KEY = Symbol(__DEV__ ? 'Map key iterate' : '')
 
-// 响应式实例
+// 副作用实例(最为依赖被收集)
 export class ReactiveEffect<T = any> {
   active = true
-  deps: Dep[] = [] // 和响应式相关的依赖
+  deps: Dep[] = [] // 副作用相关的依赖
   parent: ReactiveEffect | undefined = undefined
 
   /**
@@ -85,8 +85,8 @@ export class ReactiveEffect<T = any> {
   onTrigger?: (event: DebuggerEvent) => void
 
   constructor(
-    public fn: () => T, // 响应式执行函数
-    public scheduler: EffectScheduler | null = null, // 响应式前置函数
+    public fn: () => T, // 副作用执行函数
+    public scheduler: EffectScheduler | null = null, //副作用前置函数
     scope?: EffectScope
   ) {
     recordEffectScope(this, scope)
@@ -199,7 +199,7 @@ export function effect<T = any>(
     fn = (fn as ReactiveEffectRunner).effect.fn
   }
 
-  // 创建响应式的副作用实例
+  // 创建副作用实例
   const _effect = new ReactiveEffect(fn)
   // 如果有 options 参数, 扩展到 _effect
   if (options) {
@@ -207,7 +207,7 @@ export function effect<T = any>(
     if (options.scope) recordEffectScope(_effect, options.scope)
   }
   if (!options || !options.lazy) {
-    // 执行依赖
+    // 执行副作用函数
     _effect.run()
   }
   const runner = _effect.run.bind(_effect) as ReactiveEffectRunner

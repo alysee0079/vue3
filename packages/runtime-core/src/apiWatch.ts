@@ -372,7 +372,7 @@ function doWatch(
     scheduler = () => queueJob(job)
   }
 
-  // 创建 watch 响应式实列
+  // 创建 watch 副作用实例(会被当做依赖收集)
   const effect = new ReactiveEffect(getter, scheduler)
 
   if (__DEV__) {

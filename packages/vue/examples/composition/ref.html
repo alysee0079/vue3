@@ -9,27 +9,26 @@
   </head>
   <body>
     <div id="app">
-      <p>{{com}}</p>
-      <button @click="toggle">toggle</button>
+      <p>{{plusOne}}</p>
+      <button @click="plus">toggle</button>
     </div>
 
     <script>
-      const { createApp, reactive, computed } = Vue
+      const { createApp, reactive, computed, ref } = Vue
       createApp({
         setup(props) {
-          const state = reactive({
-            num: 0
-          })
+          const count = ref(0)
 
-          const com = computed(() => state.num + 10)
-          const toggle = () => {
-            state.num++
+          const plusOne = computed(() => count.value + 10)
+
+          const plus = () => {
+            debugger
+            count.value++
           }
 
           return {
-            com,
-            state,
-            toggle
+            plusOne,
+            plus
           }
         }
       }).mount(document.querySelector('#app'))
