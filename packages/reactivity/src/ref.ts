@@ -36,12 +36,13 @@ type RefBase<T> = {
   value: T
 }
 
-// 收集依赖
+// ref 收集依赖
 export function trackRefValue(ref: RefBase<any>) {
   // activeEffect 当前激活的依赖
   if (shouldTrack && activeEffect) {
     ref = toRaw(ref)
     if (__DEV__) {
+      // 依赖收集到 ref 实例上
       trackEffects(ref.dep || (ref.dep = createDep()), {
         target: ref,
         type: TrackOpTypes.GET,

@@ -41,11 +41,12 @@ export class ComputedRefImpl<T> {
     isReadonly: boolean,
     isSSR: boolean
   ) {
-    // 初始化响应式实例
+    // 创建 computed 的响应式实例
     this.effect = new ReactiveEffect(getter, () => {
-      // _dirty 改为 true, 代表需要更新最新值
+      // 触发计算属性时, 将 _dirty 改为 true, 代表需要更新最新值
       if (!this._dirty) {
         this._dirty = true
+        // 触发依赖
         triggerRefValue(this)
       }
     })

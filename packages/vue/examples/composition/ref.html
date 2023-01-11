@@ -9,33 +9,27 @@
   </head>
   <body>
     <div id="app">
-      <div v-if="state.showMsg">{{state.msg}}</div>
-      <div v-else>{{Math.random()}}</div>
+      <p>{{com}}</p>
       <button @click="toggle">toggle</button>
-      <button @click="switchView">switchView</button>
     </div>
 
     <script>
-      const { createApp, reactive } = Vue
+      const { createApp, reactive, computed } = Vue
       createApp({
         setup(props) {
           const state = reactive({
-            showMsg: true,
-            msg: '123'
+            num: 0
           })
 
+          const com = computed(() => state.num + 10)
           const toggle = () => {
-            state.msg = state.msg === '123' ? '456' : '123'
-          }
-
-          const switchView = () => {
-            state.showMsg = !state.showMsg
+            state.num++
           }
 
           return {
+            com,
             state,
-            toggle,
-            switchView
+            toggle
           }
         }
       }).mount(document.querySelector('#app'))
