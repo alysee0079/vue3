@@ -32,7 +32,7 @@ export const newTracked = (dep: Dep): boolean => (dep.n & trackOpBit) > 0
 export const initDepMarkers = ({ deps }: ReactiveEffect) => {
   if (deps.length) {
     for (let i = 0; i < deps.length; i++) {
-      // 标记当前层的依赖已经被收集
+      // 标记当前层的依赖为被收集
       deps[i].w |= trackOpBit // set was tracked
     }
   }

@@ -20,16 +20,22 @@ type KeyToDepMap = Map<any, Dep>
 const targetMap = new WeakMap<any, KeyToDepMap>()
 
 // The number of effects currently being tracked recursively.
-let effectTrackDepth = 0
+let effectTrackDepth = 0 // 递归嵌套执行副作用函数的深度
 
-export let trackOpBit = 1 // 依赖手机的状态
+export let trackOpBit = 1 // 依赖收集的状态
 
 /**
  * The bitwise track markers support at most 30 levels of recursion.
  * This value is chosen to enable modern JS engines to use a SMI on all platforms.
  * When recursion depth is greater, fall back to using a full cleanup.
  */
-const maxMarkerBits = 30 // 最大标记的位数
+
+/**
+ * 按位跟踪标记最多支持 30 级递归。
+ * 选择此值是为了使现代 JS 引擎能够在所有平台上使用 SMI。
+ * 当递归深度更大时，退回到使用完全清理。
+ */
+const maxMarkerBits = 30 // 最大递归嵌套执行副作用深度
 
 export type EffectScheduler = (...args: any[]) => any
 
@@ -112,17 +118,17 @@ export class ReactiveEffect<T = any> {
       trackOpBit = 1 << ++effectTrackDepth
       // 如果超过 maxMarkerBits, 则 trackOpBit 的计算会超过最大整型的位数, 将其降级为 cleanupEffect
       if (effectTrackDepth <= maxMarkerBits) {
-        // 给依赖打标记
-        initDepMarkers(this)
+        // 初始化依赖的收集状态: 被收集
+        initDepMarkers(this) // 标记当前层的依赖已经被收集
       } else {
         // 清除依赖
         cleanupEffect(this)
       }
-      // 执行副作用函数
+      // 执行副作用函数(如果访问到响应式数据, 会触发依赖收集)
       return this.fn()
     } finally {
       if (effectTrackDepth <= maxMarkerBits) {
-        // 完成依赖标记
+        // 清空依赖状态
         finalizeDepMarkers(this)
       }
 
@@ -264,11 +270,12 @@ export function trackEffects(
   debuggerEventExtraInfo?: DebuggerEventExtraInfo
 ) {
   let shouldTrack = false
+  // 副作用层级没有超过 30 层
   if (effectTrackDepth <= maxMarkerBits) {
     if (!newTracked(dep)) {
-      // 标记新依赖
+      // 标记为新依赖
       dep.n |= trackOpBit // set newly tracked
-      // 如果依赖已经被收集m, 就不需要再次收集
+      // 设置是否应该收集依赖, 如果依赖已经被收集, 就不需要再次收集
       shouldTrack = !wasTracked(dep)
     }
   } else {
