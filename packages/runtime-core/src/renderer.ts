@@ -351,9 +351,9 @@ function baseCreateRenderer(
   // Note: functions inside this closure should use `const xxx = () => {}`
   // style in order to prevent being inlined by minifiers.
   const patch: PatchFn = (
-    n1,
-    n2,
-    container,
+    n1, // 旧 vnode
+    n2, // 新 vnode
+    container, // DOM 容器, vnode 挂载的元素
     anchor = null,
     parentComponent = null,
     parentSuspense = null,
@@ -361,13 +361,17 @@ function baseCreateRenderer(
     slotScopeIds = null,
     optimized = __DEV__ && isHmrUpdating ? false : !!n2.dynamicChildren
   ) => {
+    // 新旧 vnode 相同, 未改表, 直接退出
     if (n1 === n2) {
       return
     }
 
     // patching & not same type, unmount old tree
+    // 新旧节点key 和 type 不同, 销毁旧节点
     if (n1 && !isSameVNodeType(n1, n2)) {
+      // 获旧节点的下一个兄弟节点作为锚点
       anchor = getNextHostNode(n1)
+      // 卸载旧节点
       unmount(n1, parentComponent, parentSuspense, true)
       n1 = null
     }
@@ -468,6 +472,7 @@ function baseCreateRenderer(
   }
 
   const processText: ProcessTextOrCommentFn = (n1, n2, container, anchor) => {
+    // n1 为 null时, 初次挂载
     if (n1 == null) {
       hostInsert(
         (n2.el = hostCreateText(n2.children as string)),
@@ -475,6 +480,8 @@ function baseCreateRenderer(
         anchor
       )
     } else {
+      // 更新阶段
+      // 将旧 vnode 对应的 DOM 元素复制到新 vnode 上
       const el = (n2.el = n1.el!)
       if (n2.children !== n1.children) {
         hostSetText(el, n2.children as string)
@@ -582,6 +589,7 @@ function baseCreateRenderer(
   ) => {
     isSVG = isSVG || (n2.type as string) === 'svg'
     if (n1 == null) {
+      // 挂载
       mountElement(
         n2,
         container,
@@ -593,6 +601,7 @@ function baseCreateRenderer(
         optimized
       )
     } else {
+      // 更新
       patchElement(
         n1,
         n2,
@@ -619,6 +628,7 @@ function baseCreateRenderer(
     let vnodeHook: VNodeHook | undefined | null
     const { type, props, shapeFlag, transition, dirs } = vnode
 
+    // 创建 DOM 元素节点
     el = vnode.el = hostCreateElement(
       vnode.type as string,
       isSVG,
@@ -629,8 +639,10 @@ function baseCreateRenderer(
     // mount children first, since some props may rely on child content
     // being already rendered, e.g. `<select value>`
     if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
+      // 处理子节点 vnode 是纯文本的情况
       hostSetElementText(el, vnode.children as string)
     } else if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+      // 处理子节点 vnode 是数组的情况
       mountChildren(
         vnode.children as VNodeArrayChildren,
         el,
@@ -704,6 +716,7 @@ function baseCreateRenderer(
     if (needCallTransitionHooks) {
       transition!.beforeEnter(el)
     }
+    // 把创建的 DOM 元素挂载到 container 上
     hostInsert(el, container, anchor)
     if (
       (vnodeHook = props && props.onVnodeMounted) ||
@@ -1365,6 +1378,7 @@ function baseCreateRenderer(
           if (__DEV__) {
             startMeasure(instance, `render`)
           }
+          // 渲染组件生成子树
           const subTree = (instance.subTree = renderComponentRoot(instance))
           if (__DEV__) {
             endMeasure(instance, `render`)
@@ -1372,6 +1386,7 @@ function baseCreateRenderer(
           if (__DEV__) {
             startMeasure(instance, `patch`)
           }
+          // 把子树的 vnode 挂载到 container 中
           patch(
             null,
             subTree,
@@ -1384,6 +1399,7 @@ function baseCreateRenderer(
           if (__DEV__) {
             endMeasure(instance, `patch`)
           }
+          // 保存渲染生成的子树 DOM 节点
           initialVNode.el = subTree.el
         }
         // mounted hook
@@ -1453,8 +1469,10 @@ function baseCreateRenderer(
 
         // Disallow component effect recursion during pre-lifecycle hooks.
         toggleRecurse(instance, false)
+        // next 表示新的组件 vnode
         if (next) {
           next.el = vnode.el
+          // 更新组件 vnode 信息
           updateComponentPreRender(instance, next, optimized)
         } else {
           next = vnode
@@ -1480,16 +1498,20 @@ function baseCreateRenderer(
         if (__DEV__) {
           startMeasure(instance, `render`)
         }
+        // 渲染新的子树 vnode
         const nextTree = renderComponentRoot(instance)
         if (__DEV__) {
           endMeasure(instance, `render`)
         }
+        // 缓存旧的子树 vnode
         const prevTree = instance.subTree
+        // 更新子树 vnode
         instance.subTree = nextTree
 
         if (__DEV__) {
           startMeasure(instance, `patch`)
         }
+        // 组件更新核心逻辑, 根据新旧子树 vnode 执行 patch
         patch(
           prevTree,
           nextTree,
@@ -1542,7 +1564,7 @@ function baseCreateRenderer(
       }
     }
 
-    // 创建组件渲染和更新副作用, 被当作依赖收集
+    // 创建组件渲染的副作用响应式对象, 被当作依赖收集
     // create reactive effect for rendering
     const effect = (instance.effect = new ReactiveEffect(
       componentUpdateFn,
@@ -1551,6 +1573,7 @@ function baseCreateRenderer(
       instance.scope // track it in component's effect scope
     ))
 
+    // 更新
     const update: SchedulerJob = (instance.update = () => effect.run())
     update.id = instance.uid
     // allowRecurse
@@ -2324,12 +2347,14 @@ function baseCreateRenderer(
         unmount(container._vnode, null, null, true)
       }
     } else {
+      // 创建或者更新组件
       patch(container._vnode || null, vnode, container, null, null, null, isSVG)
     }
     // 在组件渲染之前执行副作用
     flushPreFlushCbs()
     // 在组件渲染后收执行副作用
     flushPostFlushCbs()
+    // 缓存 vnode 节点, 表示已经渲染
     container._vnode = vnode
   }
 

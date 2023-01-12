@@ -295,6 +295,7 @@ export function createAppAPI<HostElement>(
                 ` you need to unmount the previous app by calling \`app.unmount()\` first.`
             )
           }
+          // 创建根组件的 vnode
           const vnode = createVNode(
             rootComponent as ConcreteComponent,
             rootProps
@@ -313,6 +314,7 @@ export function createAppAPI<HostElement>(
           if (isHydrate && hydrate) {
             hydrate(vnode as VNode<Node, Element>, rootContainer as any)
           } else {
+            // 渲染 vnode
             render(vnode, rootContainer, isSVG)
           }
           isMounted = true

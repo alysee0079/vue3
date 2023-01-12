@@ -8,19 +8,15 @@
     <script src="../../dist/vue.global.js"></script>
   </head>
   <body>
-    <div id="app">{{state.count}}</div>
+    <div id="app">
+      <p>{{state.count}}</p>
+    </div>
 
     <script>
       const { createApp, reactive, computed, ref, watch, watchEffect } = Vue
       createApp({
         setup(props) {
           const state = reactive({ count: 0 })
-
-          watchEffect(() => {
-            console.log(state.count)
-          })
-
-          state.count++
 
           return {
             state
