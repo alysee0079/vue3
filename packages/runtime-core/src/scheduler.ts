@@ -34,8 +34,8 @@ export interface SchedulerJob extends Function {
 
 export type SchedulerJobs = SchedulerJob | SchedulerJob[]
 
-let isFlushing = false
-let isFlushPending = false
+let isFlushing = false // 副作用任务执行中
+let isFlushPending = false // 插入副作用任务中
 
 const queue: SchedulerJob[] = []
 let flushIndex = 0 // 当前执行任务在队列中的位置 index
@@ -78,6 +78,7 @@ function findInsertionIndex(id: number) {
   return start
 }
 
+// 将任务插入到任务列表
 export function queueJob(job: SchedulerJob) {
   // the dedupe search uses the startIndex argument of Array.includes()
   // by default the search index includes the current job that is being run
@@ -105,10 +106,12 @@ export function queueJob(job: SchedulerJob) {
 }
 
 function queueFlush() {
-  // 如果当前没有任务执行, 开始执行任务队列
+  // 当前没有执行异步任务, 且不处于插入异步任务中
+  // 当没有异步任务执行且, 不处于插入任务中, 才允许创建新的异步任务执行函数
   if (!isFlushing && !isFlushPending) {
+    // 将状态改为插入异步任务中
     isFlushPending = true
-    // 使用微任务执行任务
+    // 创建异步任务队列执行函数
     currentFlushPromise = resolvedPromise.then(flushJobs)
   }
 }
@@ -140,6 +143,7 @@ export function queuePostFlushCb(cb: SchedulerJobs) {
   queueFlush()
 }
 
+// 在组件渲染之前执行副作用
 export function flushPreFlushCbs(
   seen?: CountMap,
   // if currently flushing, skip the current job itself
@@ -160,7 +164,7 @@ export function flushPreFlushCbs(
     }
   }
 }
-
+// 在组件渲染之后执行副作用
 export function flushPostFlushCbs(seen?: CountMap) {
   if (pendingPostFlushCbs.length) {
     const deduped = [...new Set(pendingPostFlushCbs)]
@@ -210,7 +214,9 @@ const comparator = (a: SchedulerJob, b: SchedulerJob): number => {
 }
 
 function flushJobs(seen?: CountMap) {
+  // 执行异步任务中, 将插入状态改为 false
   isFlushPending = false
+  // 将执行异步任务改为 是
   isFlushing = true
   if (__DEV__) {
     seen = seen || new Map()
@@ -221,8 +227,10 @@ function flushJobs(seen?: CountMap) {
   // 1. Components are updated from parent to child. (because parent is always
   //    created before the child so its render effect will have smaller
   //    priority number)
+  //    组件的更新顺序是先父后子, 所以副作用渲染函数的顺序也是先父后子, 因为父组件的 id 小于子组件的 id, 需要从小到大的排序
   // 2. If a component is unmounted during a parent component's update,
   //    its update can be skipped.
+  //    如果一个组件在父组件更新过程中被卸载, 那么它自身的更新应该被跳过
   queue.sort(comparator)
 
   // conditional usage of checkRecursiveUpdate must be determined out of
@@ -252,12 +260,14 @@ function flushJobs(seen?: CountMap) {
     flushIndex = 0
     queue.length = 0
 
+    // 在组件渲染后收执行副作用
     flushPostFlushCbs(seen)
-
+    // 异步任务执行完, 将执行状态改为 false
     isFlushing = false
     currentFlushPromise = null
     // some postFlushCb queued jobs!
     // keep flushing until it drains.
+    // 是否有新的任务插入, 如果有继续执行
     if (queue.length || pendingPostFlushCbs.length) {
       flushJobs(seen)
     }

@@ -173,7 +173,9 @@ export function watch<T = any, Immediate extends Readonly<boolean> = false>(
 }
 
 function doWatch(
+  // source: 要观察的数据
   source: WatchSource | WatchSource[] | WatchEffect | object,
+  // 回调函数
   cb: WatchCallback | null,
   { immediate, deep, flush, onTrack, onTrigger }: WatchOptions = EMPTY_OBJ
 ): WatchStopHandle {
@@ -203,9 +205,9 @@ function doWatch(
 
   const instance = currentInstance
   let getter: () => any
-  let forceTrigger = false
+  let forceTrigger = false // 强制触发
   let isMultiSource = false
-
+  // 标准化 source 开始
   if (isRef(source)) {
     getter = () => source.value
     forceTrigger = isShallow(source)
@@ -233,7 +235,7 @@ function doWatch(
       getter = () =>
         callWithErrorHandling(source, instance, ErrorCodes.WATCH_GETTER)
     } else {
-      // no cb -> simple effect
+      // no cb -> simple effect (watchEffect)
       getter = () => {
         if (instance && instance.isUnmounted) {
           return
@@ -269,10 +271,12 @@ function doWatch(
     }
   }
 
+  // deep === true 需要深度 watch, traverse 函数会递归访问目标子属性(子属性会收集 watch 依赖), 到达深度依赖
   if (cb && deep) {
     const baseGetter = getter
     getter = () => traverse(baseGetter())
   }
+  // 标准化 source 结束
 
   let cleanup: () => void
   let onCleanup: OnCleanup = (fn: () => void) => {
@@ -313,10 +317,11 @@ function doWatch(
     if (!effect.active) {
       return
     }
+    // watch 被作为依赖触发时, 调用 cb
     if (cb) {
       // watch(source, cb)
       // 获取最新值
-      const newValue = effect.run()
+      const newValue = effect.run() // 触发 getter 函数, 收集依赖
       if (
         deep ||
         forceTrigger ||
@@ -344,11 +349,12 @@ function doWatch(
             : oldValue,
           onCleanup
         ])
+        // 更新旧值
         oldValue = newValue
       }
     } else {
-      // watchEffect
-      effect.run()
+      // watchEffect 被作为依赖触发时, 调用 run
+      effect.run() // getter 函数
     }
   }
 
@@ -356,23 +362,24 @@ function doWatch(
   // it is allowed to self-trigger (#1727)
   job.allowRecurse = !!cb
 
+  // 创建 scheduler
   let scheduler: EffectScheduler
   if (flush === 'sync') {
-    // 立即触发回调
+    // 同步执行(监听数据改变后马上执行回调函数)
     scheduler = job as any // the scheduler function gets called directly
   } else if (flush === 'post') {
-    // 组件渲染之后再执行回调
+    // 进入异步队列, 组件渲染后收执行
     scheduler = () => queuePostRenderEffect(job, instance && instance.suspense)
   } else {
     // default: 'pre'
-    // 在组件渲染之前执行回调
     job.pre = true
     if (instance) job.id = instance.uid
-    // 加入到微任务队列执行任务
+    // 加入到微任务队列, 在组件渲染之前执行(通过 flushPreFlushCbs 主动触发)
     scheduler = () => queueJob(job)
   }
 
   // 创建 watch 副作用实例(会被当做依赖收集)
+  // getter: 返回监听的属性, scheduler: 回调函数
   const effect = new ReactiveEffect(getter, scheduler)
 
   if (__DEV__) {
@@ -380,13 +387,14 @@ function doWatch(
     effect.onTrigger = onTrigger
   }
 
+  // watch 初始化逻辑
   // initial run
   if (cb) {
     if (immediate) {
-      // immediate === true 立即执行回调
+      // immediate === true 立即执行回调, 获取最新值会触发 getter, 访问监听的属性, 收集依赖(watch)
       job()
     } else {
-      // 获取旧值
+      // 触发 getter, 访问监听的属性, 收集依赖(watch)
       oldValue = effect.run() // effect.run() === () => traverse(baseGetter())
     }
   } else if (flush === 'post') {
@@ -396,6 +404,7 @@ function doWatch(
       instance && instance.suspense
     )
   } else {
+    // watchEffect
     effect.run()
   }
 
@@ -452,7 +461,7 @@ export function createPathGetter(ctx: any, path: string) {
   }
 }
 
-// 触发 watch 目标的依赖收集
+// 触发 watch 目标子鼠星的依赖收集(收集 watch)
 export function traverse(value: unknown, seen?: Set<unknown>) {
   if (!isObject(value) || (value as any)[ReactiveFlags.SKIP]) {
     return value

@@ -1235,6 +1235,7 @@ function baseCreateRenderer(
       return
     }
 
+    // 设置并运行带副作用的渲染函数
     setupRenderEffect(
       instance,
       initialVNode,
@@ -1294,8 +1295,11 @@ function baseCreateRenderer(
     isSVG,
     optimized
   ) => {
+    // 组件的渲染和更新函数
     const componentUpdateFn = () => {
+      // 组件未挂载
       if (!instance.isMounted) {
+        // 挂载
         let vnodeHook: VNodeHook | null | undefined
         const { el, props } = initialVNode
         const { bm, m, parent } = instance
@@ -1436,6 +1440,7 @@ function baseCreateRenderer(
         // #2458: deference mount-only object parameters to prevent memleaks
         initialVNode = container = anchor = null as any
       } else {
+        // 组件已挂载, 更新
         // updateComponent
         // This is triggered by mutation of component's own state (next: null)
         // OR parent calling processComponent (next: VNode)
@@ -1537,9 +1542,11 @@ function baseCreateRenderer(
       }
     }
 
+    // 创建组件渲染和更新副作用, 被当作依赖收集
     // create reactive effect for rendering
     const effect = (instance.effect = new ReactiveEffect(
       componentUpdateFn,
+      // 插入更新任务
       () => queueJob(update),
       instance.scope // track it in component's effect scope
     ))
@@ -2319,7 +2326,9 @@ function baseCreateRenderer(
     } else {
       patch(container._vnode || null, vnode, container, null, null, null, isSVG)
     }
+    // 在组件渲染之前执行副作用
     flushPreFlushCbs()
+    // 在组件渲染后收执行副作用
     flushPostFlushCbs()
     container._vnode = vnode
   }

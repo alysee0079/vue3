@@ -61,7 +61,7 @@ export const MAP_KEY_ITERATE_KEY = Symbol(__DEV__ ? 'Map key iterate' : '')
 // 副作用实例(最为依赖被收集)
 export class ReactiveEffect<T = any> {
   active = true
-  deps: Dep[] = [] // 副作用相关的依赖
+  deps: Dep[] = [] // 依赖
   parent: ReactiveEffect | undefined = undefined
 
   /**
@@ -191,6 +191,7 @@ export interface ReactiveEffectRunner<T = any> {
   effect: ReactiveEffect
 }
 
+// 主动收集副作用(依赖)
 export function effect<T = any>(
   fn: () => T,
   options?: ReactiveEffectOptions
@@ -199,7 +200,7 @@ export function effect<T = any>(
     fn = (fn as ReactiveEffectRunner).effect.fn
   }
 
-  // 创建副作用实例
+  // 创建副作用(依赖)实例
   const _effect = new ReactiveEffect(fn)
   // 如果有 options 参数, 扩展到 _effect
   if (options) {
@@ -207,7 +208,7 @@ export function effect<T = any>(
     if (options.scope) recordEffectScope(_effect, options.scope)
   }
   if (!options || !options.lazy) {
-    // 执行副作用函数
+    // 触发副作用
     _effect.run()
   }
   const runner = _effect.run.bind(_effect) as ReactiveEffectRunner

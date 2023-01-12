@@ -8,27 +8,22 @@
     <script src="../../dist/vue.global.js"></script>
   </head>
   <body>
-    <div id="app">
-      <p>{{plusOne}}</p>
-      <button @click="plus">toggle</button>
-    </div>
+    <div id="app">{{state.count}}</div>
 
     <script>
-      const { createApp, reactive, computed, ref } = Vue
+      const { createApp, reactive, computed, ref, watch, watchEffect } = Vue
       createApp({
         setup(props) {
-          const count = ref(0)
+          const state = reactive({ count: 0 })
 
-          const plusOne = computed(() => count.value + 10)
+          watchEffect(() => {
+            console.log(state.count)
+          })
 
-          const plus = () => {
-            debugger
-            count.value++
-          }
+          state.count++
 
           return {
-            plusOne,
-            plus
+            state
           }
         }
       }).mount(document.querySelector('#app'))

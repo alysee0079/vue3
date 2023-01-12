@@ -46,12 +46,13 @@ export const finalizeDepMarkers = (effect: ReactiveEffect) => {
       const dep = deps[i]
       // 曾经被收集但不是新的依赖, 需要被删除(不是本次的依赖)
       if (wasTracked(dep) && !newTracked(dep)) {
+        // 将副作用本身从依赖中删除, 这样当依赖更新时就不会再触发副作用
         dep.delete(effect)
       } else {
         deps[ptr++] = dep
       }
       // clear bits
-      // 执行完副作用清空状态
+      // 执行完副作用清空依赖的状态
       dep.w &= ~trackOpBit
       dep.n &= ~trackOpBit
     }
