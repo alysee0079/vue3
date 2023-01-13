@@ -1773,6 +1773,7 @@ function baseCreateRenderer(
     }
   }
 
+  // diff 算法
   // can be all-keyed or mixed
   const patchKeyedChildren = (
     c1: VNode[],
@@ -1785,11 +1786,15 @@ function baseCreateRenderer(
     slotScopeIds: string[] | null,
     optimized: boolean
   ) => {
+    // 遍历的当前下标
     let i = 0
     const l2 = c2.length
-    let e1 = c1.length - 1 // prev ending index
-    let e2 = l2 - 1 // next ending index
+    let e1 = c1.length - 1 // prev ending index 旧子节点的尾部索引
+    let e2 = l2 - 1 // next ending index 新子节点的尾部索引
 
+    // diff 预处理
+
+    // 1.同步头部节点
     // 1. sync from start
     // (a b) c
     // (a b) d e
@@ -1799,6 +1804,7 @@ function baseCreateRenderer(
         ? cloneIfMounted(c2[i] as VNode)
         : normalizeVNode(c2[i]))
       if (isSameVNodeType(n1, n2)) {
+        // 更新节点
         patch(
           n1,
           n2,
@@ -1811,11 +1817,14 @@ function baseCreateRenderer(
           optimized
         )
       } else {
+        // key 或者 type 不同, 跳出 while 循环, 结束同步头部节点
         break
       }
+      // 下表后移
       i++
     }
 
+    // 2.同步尾部节点
     // 2. sync from end
     // a (b c)
     // d e (b c)
@@ -1825,6 +1834,7 @@ function baseCreateRenderer(
         ? cloneIfMounted(c2[e2] as VNode)
         : normalizeVNode(c2[e2]))
       if (isSameVNodeType(n1, n2)) {
+        // 更新节点
         patch(
           n1,
           n2,
@@ -1837,12 +1847,15 @@ function baseCreateRenderer(
           optimized
         )
       } else {
+        // key 或者 type 不同, 跳出 while 循环, 结束同步尾部节点
         break
       }
+      // 下标前移
       e1--
       e2--
     }
 
+    // 3.处理新增节点
     // 3. common sequence + mount
     // (a b)
     // (a b) c
@@ -1850,10 +1863,13 @@ function baseCreateRenderer(
     // (a b)
     // c (a b)
     // i = 0, e1 = -1, e2 = 0
+    // 如果遍历下标 > 旧节点尾部节点下标, 同时遍历下标 < 新节点尾部节点下标, 说明新节点数量大于旧节点数量
     if (i > e1) {
       if (i <= e2) {
         const nextPos = e2 + 1
+        // 插入锚点
         const anchor = nextPos < l2 ? (c2[nextPos] as VNode).el : parentAnchor
+        // 依次插入新节点
         while (i <= e2) {
           patch(
             null,
@@ -1873,6 +1889,7 @@ function baseCreateRenderer(
       }
     }
 
+    // 4.处理删除节点
     // 4. common sequence + unmount
     // (a b) c
     // (a b)
@@ -1880,13 +1897,16 @@ function baseCreateRenderer(
     // a (b c)
     // (b c)
     // i = 0, e1 = 0, e2 = -1
+    // 如果遍历下标 > 新节点尾部节点下标, 同时遍历下标 < 旧节点尾部节点下标, 说明新节点数量小于旧节点数量
     else if (i > e2) {
       while (i <= e1) {
+        // 依次删除旧节点
         unmount(c1[i], parentComponent, parentSuspense, true)
         i++
       }
     }
 
+    // 5.未知序列
     // 5. unknown sequence
     // [i ... e1 + 1]: a b [c d e] f g
     // [i ... e2 + 1]: a b [e d c h] f g
