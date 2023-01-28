@@ -82,6 +82,7 @@ export function baseCompile(
     onError(createCompilerError(ErrorCodes.X_SCOPE_ID_NOT_SUPPORTED))
   }
 
+  // 解析 template 生成 ast 抽象语法树
   const ast = isString(template) ? baseParse(template, options) : template
   const [nodeTransforms, directiveTransforms] =
     getBaseTransformPreset(prefixIdentifiers)
@@ -93,6 +94,7 @@ export function baseCompile(
     }
   }
 
+  // 将  template ast 转换为 javascript ast
   transform(
     ast,
     extend({}, options, {
@@ -109,6 +111,7 @@ export function baseCompile(
     })
   )
 
+  // 将 javascript ast 转换为 render 函数
   return generate(
     ast,
     extend({}, options, {

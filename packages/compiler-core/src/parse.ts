@@ -105,9 +105,11 @@ export function baseParse(
   content: string,
   options: ParserOptions = {}
 ): RootNode {
+  // 生成上下文对象
   const context = createParserContext(content, options)
   const start = getCursor(context)
   return createRoot(
+    // 解析子节点
     parseChildren(context, TextModes.DATA, []),
     getSelection(context, start)
   )
@@ -140,13 +142,16 @@ function createParserContext(
   }
 }
 
+// 解析子节点
 function parseChildren(
   context: ParserContext,
   mode: TextModes,
   ancestors: ElementNode[]
 ): TemplateChildNode[] {
+  // 获取当前节点的父节点
   const parent = last(ancestors)
   const ns = parent ? parent.ns : Namespaces.HTML
+  // 这个 nodes 就是生成的 AST 中的 children
   const nodes: TemplateChildNode[] = []
 
   while (!isEnd(context, mode, ancestors)) {
@@ -156,17 +161,21 @@ function parseChildren(
 
     if (mode === TextModes.DATA || mode === TextModes.RCDATA) {
       if (!context.inVPre && startsWith(s, context.options.delimiters[0])) {
+        // 处理双大括号
         // '{{'
         node = parseInterpolation(context, mode)
       } else if (mode === TextModes.DATA && s[0] === '<') {
+        // 处理 <
         // https://html.spec.whatwg.org/multipage/parsing.html#tag-open-state
         if (s.length === 1) {
           emitError(context, ErrorCodes.EOF_BEFORE_TAG_NAME, 1)
         } else if (s[1] === '!') {
           // https://html.spec.whatwg.org/multipage/parsing.html#markup-declaration-open-state
           if (startsWith(s, '<!--')) {
+            // 处理注释节点
             node = parseComment(context)
           } else if (startsWith(s, '<!DOCTYPE')) {
+            // <!DOCTYPE html> 节点
             // Ignore DOCTYPE by a limitation.
             node = parseBogusComment(context)
           } else if (startsWith(s, '<![CDATA[')) {
@@ -201,6 +210,7 @@ function parseChildren(
             node = parseBogusComment(context)
           }
         } else if (/[a-z]/i.test(s[1])) {
+          // 处理元素标签
           node = parseElement(context, ancestors)
 
           // 2.x <template> with no directive compat
@@ -238,19 +248,23 @@ function parseChildren(
         }
       }
     }
+    // 处理文本节点
     if (!node) {
       node = parseText(context, mode)
     }
 
     if (isArray(node)) {
       for (let i = 0; i < node.length; i++) {
+        // 将子节点添加到节点列表
         pushNode(nodes, node[i])
       }
     } else {
+      // 将子节点添加到节点列表
       pushNode(nodes, node)
     }
   }
 
+  // 处理空格换行
   // Whitespace handling strategy like v2
   let removedWhitespace = false
   if (mode !== TextModes.RAWTEXT && mode !== TextModes.RCDATA) {
@@ -273,10 +287,10 @@ function parseChildren(
               (shouldCondense &&
                 ((prev.type === NodeTypes.COMMENT &&
                   next.type === NodeTypes.COMMENT) ||
-                  (prev.type === NodeTypes.COMMENT && 
-                  next.type === NodeTypes.ELEMENT) ||
+                  (prev.type === NodeTypes.COMMENT &&
+                    next.type === NodeTypes.ELEMENT) ||
                   (prev.type === NodeTypes.ELEMENT &&
-                  next.type === NodeTypes.COMMENT) ||
+                    next.type === NodeTypes.COMMENT) ||
                   (prev.type === NodeTypes.ELEMENT &&
                     next.type === NodeTypes.ELEMENT &&
                     /[\r\n]/.test(node.content))))
@@ -432,7 +446,9 @@ function parseElement(
   // Start tag.
   const wasInPre = context.inPre
   const wasInVPre = context.inVPre
+  // 获取当前节点的父节点
   const parent = last(ancestors)
+  // 处理开始标签, 获取元素对象
   const element = parseTag(context, TagType.Start, parent)
   const isPreBoundary = context.inPre && !wasInPre
   const isVPreBoundary = context.inVPre && !wasInVPre
@@ -449,9 +465,12 @@ function parseElement(
   }
 
   // Children.
+  // 插入子节点
   ancestors.push(element)
   const mode = context.options.getTextMode(element, parent)
+  // 解析子节点并返回
   const children = parseChildren(context, mode, ancestors)
+  // 将当前父节点删除
   ancestors.pop()
 
   // 2.x inline-template compat
@@ -476,9 +495,11 @@ function parseElement(
     }
   }
 
+  // 给当前节点添加子节点
   element.children = children
 
   // End tag.
+  // 处理结束标签
   if (startsWithEndTagOpen(context.source, element.tag)) {
     parseTag(context, TagType.End, parent)
   } else {
@@ -575,6 +596,7 @@ function parseTag(
   if (context.source.length === 0) {
     emitError(context, ErrorCodes.EOF_IN_TAG)
   } else {
+    // 自闭合标签
     isSelfClosing = startsWith(context.source, '/>')
     if (type === TagType.End && isSelfClosing) {
       emitError(context, ErrorCodes.END_TAG_WITH_TRAILING_SOLIDUS)

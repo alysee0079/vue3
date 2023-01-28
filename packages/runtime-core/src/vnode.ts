@@ -413,6 +413,7 @@ const normalizeRef = ({
   ) as any
 }
 
+// 创建 vnode
 function createBaseVNode(
   type: VNodeTypes | ClassComponent | typeof NULL_DYNAMIC_COMPONENT,
   props: (Data & VNodeProps) | null = null,
@@ -444,7 +445,7 @@ function createBaseVNode(
     target: null,
     targetAnchor: null,
     staticCount: 0,
-    shapeFlag,
+    shapeFlag, // vnode 类型
     patchFlag,
     dynamicProps,
     dynamicChildren: null,
@@ -453,6 +454,7 @@ function createBaseVNode(
   } as VNode
 
   if (needFullChildrenNormalization) {
+    // 处理 vnode Children 类型
     normalizeChildren(vnode, children)
     // normalize suspense children
     if (__FEATURE_SUSPENSE__ && shapeFlag & ShapeFlags.SUSPENSE) {
@@ -549,6 +551,7 @@ function _createVNode(
   }
 
   // class & style normalization.
+  // 处理 class 和 style
   if (props) {
     // for reactive or proxy objects, we need to clone it to enable mutation.
     props = guardReactiveProps(props)!
@@ -567,16 +570,17 @@ function _createVNode(
   }
 
   // encode the vnode type information into a bitmap
+  // vnode 类型(shapeFlag)第一次判断, DOM 类型的判断
   const shapeFlag = isString(type)
-    ? ShapeFlags.ELEMENT
+    ? ShapeFlags.ELEMENT // 元素
     : __FEATURE_SUSPENSE__ && isSuspense(type)
-    ? ShapeFlags.SUSPENSE
+    ? ShapeFlags.SUSPENSE // suspense
     : isTeleport(type)
-    ? ShapeFlags.TELEPORT
+    ? ShapeFlags.TELEPORT // teleport
     : isObject(type)
-    ? ShapeFlags.STATEFUL_COMPONENT
+    ? ShapeFlags.STATEFUL_COMPONENT // 对象组件
     : isFunction(type)
-    ? ShapeFlags.FUNCTIONAL_COMPONENT
+    ? ShapeFlags.FUNCTIONAL_COMPONENT // 函数组件
     : 0
 
   if (__DEV__ && shapeFlag & ShapeFlags.STATEFUL_COMPONENT && isProxy(type)) {
@@ -757,14 +761,19 @@ export function cloneIfMounted(child: VNode): VNode {
     : cloneVNode(child)
 }
 
+// vnode 类型(shapeFlag)第二次判断, Children 类型的判断
 export function normalizeChildren(vnode: VNode, children: unknown) {
   let type = 0
   const { shapeFlag } = vnode
+  // 没有子节点
   if (children == null) {
     children = null
   } else if (isArray(children)) {
+    // 子节点是数组
     type = ShapeFlags.ARRAY_CHILDREN
   } else if (typeof children === 'object') {
+    // 子节点是对象
+    // 如果子节点是 DOM 元素(slot)或者 teleport 组件
     if (shapeFlag & (ShapeFlags.ELEMENT | ShapeFlags.TELEPORT)) {
       // Normalize slot to plain children for plain element and Teleport
       const slot = (children as any).default
@@ -796,19 +805,23 @@ export function normalizeChildren(vnode: VNode, children: unknown) {
       }
     }
   } else if (isFunction(children)) {
+    // 如果子节点是函数
     children = { default: children, _ctx: currentRenderingInstance }
     type = ShapeFlags.SLOTS_CHILDREN
   } else {
     children = String(children)
     // force teleport children to array so it can be moved around
     if (shapeFlag & ShapeFlags.TELEPORT) {
+      // 子节点是 teleport 组件
       type = ShapeFlags.ARRAY_CHILDREN
       children = [createTextVNode(children as string)]
     } else {
+      // 子节点是文本
       type = ShapeFlags.TEXT_CHILDREN
     }
   }
   vnode.children = children as VNodeNormalizedChildren
+  // 使用 |= 将 DOM 类型和 Children 类型整合
   vnode.shapeFlag |= type
 }
 

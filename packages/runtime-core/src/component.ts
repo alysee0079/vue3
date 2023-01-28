@@ -471,6 +471,7 @@ const emptyAppContext = createAppContext()
 let uid = 0
 
 // 创建组件实例
+// 为什么需要组件实例: 组件实例维护了组件的上下文数据(props, data, 组件节点 vnode, render, 生命周期...)
 export function createComponentInstance(
   vnode: VNode,
   parent: ComponentInternalInstance | null,
@@ -483,16 +484,19 @@ export function createComponentInstance(
 
   const instance: ComponentInternalInstance = {
     uid: uid++,
+    // 组件 vnode
     vnode,
     type,
     parent,
     appContext,
     root: null!, // to be immediately set
     next: null,
+    // 子节点 vnode
     subTree: null!, // will be set synchronously right after creation
     effect: null!,
     update: null!, // will be set synchronously right after creation
     scope: new EffectScope(true /* detached */),
+    // 渲染函数
     render: null,
     proxy: null,
     exposed: null,
@@ -521,6 +525,7 @@ export function createComponentInstance(
     inheritAttrs: type.inheritAttrs,
 
     // state
+    // 渲染上下文
     ctx: EMPTY_OBJ,
     data: EMPTY_OBJ,
     props: EMPTY_OBJ,
@@ -561,6 +566,7 @@ export function createComponentInstance(
   } else {
     instance.ctx = { _: instance }
   }
+  // 根组件
   instance.root = parent ? parent.root : instance
   instance.emit = emit.bind(null, instance)
 
@@ -611,10 +617,14 @@ export function setupComponent(
   isInSSRComponentSetup = isSSR
 
   const { props, children } = instance.vnode
+  // 是否是又状态组件
   const isStateful = isStatefulComponent(instance)
+  // 初始化 props
   initProps(instance, props, isStateful, isSSR)
+  // 初始化 slots
   initSlots(instance, children)
 
+  // 设置有状态的组件实例
   const setupResult = isStateful
     ? setupStatefulComponent(instance, isSSR)
     : undefined
@@ -656,18 +666,22 @@ function setupStatefulComponent(
   instance.accessCache = Object.create(null)
   // 1. create public instance / render proxy
   // also mark it raw so it's never observed
+  // 1.创建渲染上下文代理(代理对 setupState, ctx, data, props 中数据的访问和修改)
   instance.proxy = markRaw(new Proxy(instance.ctx, PublicInstanceProxyHandlers))
   if (__DEV__) {
     exposePropsOnRenderContext(instance)
   }
   // 2. call setup()
+  // 2.处理 setup 函数
   const { setup } = Component
   if (setup) {
+    // 如果 setup 参数长度大于 1, 创建一个 setup context
     const setupContext = (instance.setupContext =
       setup.length > 1 ? createSetupContext(instance) : null)
 
     setCurrentInstance(instance)
     pauseTracking()
+    // 执行 setup 函数获取返回值
     const setupResult = callWithErrorHandling(
       setup,
       instance,
@@ -708,9 +722,11 @@ function setupStatefulComponent(
         )
       }
     } else {
+      // 处理 setup 返回值(函数或者对象)
       handleSetupResult(instance, setupResult, isSSR)
     }
   } else {
+    // 3.完成组件实例设置
     finishComponentSetup(instance, isSSR)
   }
 }
@@ -727,6 +743,7 @@ export function handleSetupResult(
       // set it as ssrRender instead.
       instance.ssrRender = setupResult
     } else {
+      // setup 返回渲染函数(render)作为组件的 render
       instance.render = setupResult as InternalRenderFunction
     }
   } else if (isObject(setupResult)) {
@@ -741,6 +758,8 @@ export function handleSetupResult(
     if (__DEV__ || __FEATURE_PROD_DEVTOOLS__) {
       instance.devtoolsRawSetupState = setupResult
     }
+    // 对 setup 返回结果做一层代理
+    // 在模板渲染时, setupState 会作为 render 函数的第四个参数 $setp 传入
     instance.setupState = proxyRefs(setupResult)
     if (__DEV__) {
       exposeSetupStateOnRenderContext(instance)
@@ -752,6 +771,7 @@ export function handleSetupResult(
       }`
     )
   }
+  // 完成组件实例设置
   finishComponentSetup(instance, isSSR)
 }
 
@@ -796,6 +816,7 @@ export function finishComponentSetup(
 
   // template / render function normalization
   // could be already set when returned from setup()
+  // 对模板或者渲染函数的标准化(使用 template 时会默认返回 render 函数)
   if (!instance.render) {
     // only do on-the-fly compile if not in SSR - SSR on-the-fly compilation
     // is done by server-renderer
@@ -831,6 +852,7 @@ export function finishComponentSetup(
             extend(finalCompilerOptions.compatConfig, Component.compatConfig)
           }
         }
+        // 使用编译器生成渲染函数
         Component.render = compile(template, finalCompilerOptions)
         if (__DEV__) {
           endMeasure(instance, `compile`)
@@ -838,6 +860,7 @@ export function finishComponentSetup(
       }
     }
 
+    //设置组件实例的 render 为组件配置对象的 render 函数
     instance.render = (Component.render || NOOP) as InternalRenderFunction
 
     // for runtime-compiled render functions using `with` blocks, the render
@@ -852,6 +875,7 @@ export function finishComponentSetup(
   if (__FEATURE_OPTIONS_API__ && !(__COMPAT__ && skipOptions)) {
     setCurrentInstance(instance)
     pauseTracking()
+    //处理选项式 api
     applyOptions(instance)
     resetTracking()
     unsetCurrentInstance()
@@ -907,6 +931,7 @@ function createAttrsProxy(instance: ComponentInternalInstance): Data {
   )
 }
 
+// 创建 setup 上下文, 即第二个参数
 export function createSetupContext(
   instance: ComponentInternalInstance
 ): SetupContext {

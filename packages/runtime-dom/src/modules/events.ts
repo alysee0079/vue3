@@ -30,6 +30,7 @@ export function removeEventListener(
   el.removeEventListener(event, handler, options)
 }
 
+// 处理事件
 export function patchEvent(
   el: Element & { _vei?: Record<string, Invoker | undefined> },
   rawName: string,
@@ -42,6 +43,7 @@ export function patchEvent(
   const existingInvoker = invokers[rawName]
   if (nextValue && existingInvoker) {
     // patch
+    // 更新事件
     existingInvoker.value = nextValue
   } else {
     const [name, options] = parseName(rawName)
@@ -51,6 +53,7 @@ export function patchEvent(
       addEventListener(el, name, invoker, options)
     } else if (existingInvoker) {
       // remove
+      // 卸载上一次的事件
       removeEventListener(el, name, existingInvoker, options)
       invokers[rawName] = undefined
     }
@@ -97,9 +100,11 @@ function createInvoker(
     // or events fired from iframes, e.g. #2513)
     // The handler would only fire if the event passed to it was fired
     // AFTER it was attached.
+    // 如果没有事件创建时间, 初始化时间
     if (!e._vts) {
       e._vts = Date.now()
     } else if (e._vts <= invoker.attached) {
+      // 如果时间创建时间晚于时间的触发事件, 略过此事件
       return
     }
     callWithAsyncErrorHandling(
@@ -110,6 +115,7 @@ function createInvoker(
     )
   }
   invoker.value = initialValue
+  // 更新事件触发事件
   invoker.attached = getNow()
   return invoker
 }

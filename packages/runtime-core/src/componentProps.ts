@@ -151,6 +151,7 @@ type NormalizedProp =
 export type NormalizedProps = Record<string, NormalizedProp>
 export type NormalizedPropsOptions = [NormalizedProps, string[]] | []
 
+// 初始化 props
 export function initProps(
   instance: ComponentInternalInstance,
   rawProps: Data | null,
@@ -161,8 +162,10 @@ export function initProps(
   const attrs: Data = {}
   def(attrs, InternalObjectKey, 1)
 
+  // 初始化 props 默认值
   instance.propsDefaults = Object.create(null)
 
+  // 设置 props 的值
   setFullProps(instance, rawProps, props, attrs)
 
   // ensure all declared prop keys are present
@@ -173,12 +176,14 @@ export function initProps(
   }
 
   // validation
+  // 验证 props 合法性
   if (__DEV__) {
     validateProps(rawProps || {}, props, instance)
   }
 
   if (isStateful) {
     // stateful
+    // props 转成响应式
     instance.props = isSSR ? props : shallowReactive(props)
   } else {
     if (!instance.type.props) {
@@ -225,6 +230,7 @@ export function updateProps(
     if (patchFlag & PatchFlags.PROPS) {
       // Compiler-generated props & no keys change, just set the updated
       // the props.
+      // 只更新动态 props 节点
       const propsToUpdate = instance.vnode.dynamicProps!
       for (let i = 0; i < propsToUpdate.length; i++) {
         let key = propsToUpdate[i]
@@ -244,6 +250,7 @@ export function updateProps(
             }
           } else {
             const camelizedKey = camelize(key)
+            // 更新 props 的最新值
             props[camelizedKey] = resolvePropValue(
               options,
               rawCurrentProps,
@@ -339,12 +346,14 @@ function setFullProps(
   props: Data,
   attrs: Data
 ) {
+  // 获取标准化的 props
   const [options, needCastKeys] = instance.propsOptions
   let hasAttrsChanged = false
   let rawCastValues: Data | undefined
   if (rawProps) {
     for (let key in rawProps) {
       // key, ref are reserved and never passed down
+      // 保留 prop 不传递到子组件(key, ref)
       if (isReservedProp(key)) {
         continue
       }
@@ -365,6 +374,7 @@ function setFullProps(
       const value = rawProps[key]
       // prop option names are camelized during normalization, so to support
       // kebab -> camel conversion here we need to camelize the key.
+      // 把连字符转成小驼峰形式(a-bc => aBc)
       let camelKey
       if (options && hasOwn(options, (camelKey = camelize(key)))) {
         if (!needCastKeys || !needCastKeys.includes(camelKey)) {
@@ -392,10 +402,12 @@ function setFullProps(
   }
 
   if (needCastKeys) {
+    // 需要转换的 props
     const rawCurrentProps = toRaw(props)
     const castValues = rawCastValues || EMPTY_OBJ
     for (let i = 0; i < needCastKeys.length; i++) {
       const key = needCastKeys[i]
+      // prop 求值
       props[key] = resolvePropValue(
         options!,
         rawCurrentProps,
@@ -422,6 +434,7 @@ function resolvePropValue(
   if (opt != null) {
     const hasDefault = hasOwn(opt, 'default')
     // default values
+    // 有默认值处理
     if (hasDefault && value === undefined) {
       const defaultValue = opt.default
       if (opt.type !== Function && isFunction(defaultValue)) {
@@ -444,6 +457,7 @@ function resolvePropValue(
       }
     }
     // boolean casting
+    // 布尔类型转换
     if (opt[BooleanFlags.shouldCast]) {
       if (isAbsent && !hasDefault) {
         value = false

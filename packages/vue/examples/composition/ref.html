@@ -8,21 +8,12 @@
     <script src="../../dist/vue.global.js"></script>
   </head>
   <body>
-    <div id="app">
-      <p>{{state.count}}</p>
-    </div>
+    <div id="app"></div>
 
     <script>
-      const { createApp, reactive, computed, ref, watch, watchEffect } = Vue
-      createApp({
-        setup(props) {
-          const state = reactive({ count: 0 })
-
-          return {
-            state
-          }
-        }
-      }).mount(document.querySelector('#app'))
+      const { render, h, compile } = Vue
+      const t = compile('<div>123</div>')
+      console.log(t)
     </script>
   </body>
 </html>

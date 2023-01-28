@@ -10,6 +10,7 @@ const nativeOnRE = /^on[a-z]/
 
 type DOMRendererOptions = RendererOptions<Node, Element>
 
+// 单个 prop 打补丁
 export const patchProp: DOMRendererOptions['patchProp'] = (
   el,
   key,
@@ -21,11 +22,14 @@ export const patchProp: DOMRendererOptions['patchProp'] = (
   parentSuspense,
   unmountChildren
 ) => {
+  // class namew
   if (key === 'class') {
     patchClass(el, nextValue, isSVG)
   } else if (key === 'style') {
+    //处理样式
     patchStyle(el, prevValue, nextValue)
   } else if (isOn(key)) {
+    // 处理自定义事件
     // ignore v-model listeners
     if (!isModelListener(key)) {
       patchEvent(el, key, prevValue, nextValue, parentComponent)
@@ -56,6 +60,7 @@ export const patchProp: DOMRendererOptions['patchProp'] = (
     } else if (key === 'false-value') {
       ;(el as any)._falseValue = nextValue
     }
+    // 处理属性
     patchAttr(el, key, nextValue, isSVG, parentComponent)
   }
 }

@@ -316,11 +316,13 @@ export function createTransformContext(
 
 export function transform(root: RootNode, options: TransformOptions) {
   const context = createTransformContext(root, options)
+  // 遍历转换节点(从子到父)
   traverseNode(root, context)
   if (options.hoistStatic) {
     hoistStatic(root, context)
   }
   if (!options.ssr) {
+    // 处理根节点
     createRootCodegen(root, context)
   }
   // finalize meta information
@@ -337,12 +339,15 @@ export function transform(root: RootNode, options: TransformOptions) {
   }
 }
 
+// 处理根节点
 function createRootCodegen(root: RootNode, context: TransformContext) {
   const { helper } = context
   const { children } = root
+  // 单个跟节点
   if (children.length === 1) {
     const child = children[0]
     // if the single child is an element, turn it into a block.
+    // 根节是元素
     if (isSingleElementRoot(root, child) && child.codegenNode) {
       // single element root is never hoisted so codegenNode will never be
       // SimpleExpressionNode
@@ -409,9 +414,11 @@ export function traverseNode(
   node: RootNode | TemplateChildNode,
   context: TransformContext
 ) {
+  // 当前正在处理的节点
   context.currentNode = node
   // apply transform plugins
   const { nodeTransforms } = context
+  // 储存转化函数
   const exitFns = []
   for (let i = 0; i < nodeTransforms.length; i++) {
     const onExit = nodeTransforms[i](node, context)
@@ -456,11 +463,13 @@ export function traverseNode(
     case NodeTypes.FOR:
     case NodeTypes.ELEMENT:
     case NodeTypes.ROOT:
+      // 处理子节点
       traverseChildren(node, context)
       break
   }
 
   // exit transforms
+  // 在退出转化时执行转化函数
   context.currentNode = node
   let i = exitFns.length
   while (i--) {

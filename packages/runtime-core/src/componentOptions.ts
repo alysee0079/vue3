@@ -591,8 +591,11 @@ function createDuplicateChecker() {
 
 export let shouldCacheAccess = true
 
+// 兼容选项式 api(vue2)
+// 将 options api 定义的属性和数据添加到组件的实例 instance 相关的属性上
 export function applyOptions(instance: ComponentInternalInstance) {
   const options = resolveMergedOptions(instance)
+  // instance.proxy 作为 this
   const publicThis = instance.proxy! as any
   const ctx = instance.ctx
 
@@ -601,6 +604,7 @@ export function applyOptions(instance: ComponentInternalInstance) {
 
   // call beforeCreate first before accessing other options since
   // the hook may mutate resolved options (#2791)
+  // 触发生命周期: beforeCreate
   if (options.beforeCreate) {
     callHook(options.beforeCreate, instance, LifecycleHooks.BEFORE_CREATE)
   }
@@ -714,11 +718,13 @@ export function applyOptions(instance: ComponentInternalInstance) {
     if (!isObject(data)) {
       __DEV__ && warn(`data() should return an object.`)
     } else {
+      // 将 data 转换成响应式
       instance.data = reactive(data)
       if (__DEV__) {
         for (const key in data) {
           checkDuplicateProperties!(OptionTypes.DATA, key)
           // expose data on ctx during dev
+          // 代理 data 的访问到 ctx 上
           if (!isReservedPrefix(key[0])) {
             Object.defineProperty(ctx, key, {
               configurable: true,
@@ -787,6 +793,7 @@ export function applyOptions(instance: ComponentInternalInstance) {
     })
   }
 
+  // 触发生命周期: created
   if (created) {
     callHook(created, instance, LifecycleHooks.CREATED)
   }
@@ -802,6 +809,7 @@ export function applyOptions(instance: ComponentInternalInstance) {
     }
   }
 
+  // 注册组件的生命周期函数
   registerLifecycleHook(onBeforeMount, beforeMount)
   registerLifecycleHook(onMounted, mounted)
   registerLifecycleHook(onBeforeUpdate, beforeUpdate)
